@@ -7,13 +7,11 @@ const targetName = (process.env.CHANNEL_NAME || "x").toLowerCase();
 
 client.on('ready', async () => {
     console.log(`✅ Giriş Yapıldı: ${client.user.tag}`);
-    
     const messages = fs.readFileSync('mesajlar.txt', 'utf8').split('\n').filter(l => l.trim());
     let i = 0;
 
     while (true) {
         try {
-            // KANAL ARAMA (Saniyede 1 kez kontrol eder)
             const channel = client.channels.cache.find(c => 
                 c.name && c.name.toLowerCase() === targetName && 
                 (c.type === 'GUILD_TEXT' || c.type === 'GUILD_NEWS')
@@ -24,22 +22,32 @@ client.on('ready', async () => {
                 continue;
             }
 
-            // MESAJ GÖNDERME (60-70 WPM AYARI)
             const msg = messages[i];
+            await channel.sendTyping(); 
+
+            // İNSANSI HIZ HESAPLAMA (Random MS)
+            // Her harf için 60ms ile 110ms arasında rastgele bir süre seçer
+            // Bu da ortalama 60-70 WPM aralığına denk gelir ama sabit değildir.
+            let toplamYazmaSuresi = 0;
+            for (let j = 0; j < msg.length; j++) {
+                // Her harf için rastgele hız (Örn: 63ms, 87ms, 102ms...)
+                const randomMs = Math.floor(Math.random() * (110 - 60 + 1)) + 60;
+                toplamYazmaSuresi += randomMs;
+            }
             
-            await channel.sendTyping(); // Yazıyor... simgesi başlar
+            // Başlangıçtaki "düşünme" payını da rastgele yapıyoruz (400ms - 800ms arası)
+            const dusunmePayi = Math.floor(Math.random() * (800 - 400 + 1)) + 400;
             
-            // 60-70 WPM için harf başına ~80ms bekleme ekliyoruz
-            const yazmaSuresi = (msg.length * 80) + 600; 
-            await new Promise(r => setTimeout(r, yazmaSuresi));
+            await new Promise(r => setTimeout(r, toplamYazmaSuresi + dusunmePayi));
 
             await channel.send(msg);
             console.log(`🚀 Gönderildi (#${channel.name}): ${msg.substring(0, 15)}...`);
 
             i = (i + 1) % messages.length;
             
-            // İki mesaj arası 1.2 saniye mola (Doğal görünüm)
-            await new Promise(r => setTimeout(r, 1200));
+            // Mesajlar arası mola da sabit değil (1 sn ile 2 sn arası rastgele)
+            const sonrakiMesajMolasi = Math.floor(Math.random() * (2000 - 1000 + 1)) + 1000;
+            await new Promise(r => setTimeout(r, sonrakiMesajMolasi));
 
         } catch (err) {
             await new Promise(r => setTimeout(r, 2000));
@@ -47,5 +55,5 @@ client.on('ready', async () => {
     }
 });
 
-require('http').createServer((req, res) => res.end("Bot Aktif")).listen(process.env.PORT || 10000);
+require('http').createServer((req, res) => res.end("Aktif")).listen(process.env.PORT || 10000);
 client.login(token);
