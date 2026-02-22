@@ -3,63 +3,89 @@ const express = require('express');
 const fs = require('fs');
 const app = express();
 
-// Render'ın uyku moduna geçmesini önlemek için basit sunucu
-app.get("/", (req, res) => res.send("Sonsuz Döngü Botu Aktif!"));
-app.listen(process.env.PORT || 10000);
+// Render'ın uyku moduna geçmesini önlemek için web sunucusu
+app.get("/", (req, res) => res.send("Sistem Aktif: Mesaj Döngüsü ve Yazıyor Efekti Çalışıyor..."));
+app.listen(process.env.PORT || 10000, () => {
+    console.log("🌐 Web sunucusu 10000 portunda başlatıldı.");
+});
 
+// Environment Variables (Ortam Değişkenleri)
 const token = process.env.TOKEN;
 const channelId = process.env.CHANNEL_ID;
 
 if (token && channelId) {
+    console.log("🚀 Bot başlatılıyor...");
     const client = new Client({ checkUpdate: false });
 
     client.on('ready', async () => {
-        console.log(`✅ Giriş Yapıldı: ${client.user.tag}`);
+        console.log(`✅ BAŞARILI: ${client.user.tag} olarak giriş yapıldı!`);
         
         try {
+            // mesajlar.txt dosyasını oku
             const data = fs.readFileSync('mesajlar.txt', 'utf8');
             const messages = data.split('\n').filter(line => line.trim() !== '');
-            console.log(`📂 ${messages.length} satır yüklendi. Döngü başlıyor...`);
             
-            // Ana döngüyü başlat
-            startLoop(client, messages);
+            if (messages.length === 0) {
+                console.error("❌ HATA: mesajlar.txt dosyası boş!");
+                return;
+            }
+
+            console.log(`📂 ${messages.length} satır mesaj yüklendi. Döngü başlıyor...`);
+            startInfiniteLoop(client, messages);
+
         } catch (err) {
-            console.error("❌ Dosya okuma hatası:", err.message);
+            console.error("❌ HATA: mesajlar.txt dosyası okunamadı:", err.message);
         }
     });
 
-    client.login(token).catch(() => console.error("⚠️ Token geçersiz!"));
+    // Giriş denemesi
+    console.log("🔑 Discord'a bağlanılıyor... (Token kontrol ediliyor)");
+    client.login(token).catch((err) => {
+        console.error("❌ GİRİŞ HATASI: Token geçersiz olabilir veya IP engellenmiş olabilir.");
+        console.error("Detay:", err.message);
+    });
+
+} else {
+    console.error("❌ KRİTİK HATA: Render panelinde TOKEN veya CHANNEL_ID eksik!");
 }
 
-async function startLoop(client, messages) {
-    const channel = await client.channels.fetch(channelId);
-    if (!channel) return;
-
-    let i = 0;
-    while (true) { // Sonsuz döngü
-        const currentMsg = messages[i];
-
-        // 1. "Yazıyor..." simgesini göster
-        await channel.sendTyping();
-        
-        // 2. İnsan yazma hızı simülasyonu (Harf başı 150ms + 1sn sabit)
-        const waitTime = (currentMsg.length * 150) + 1000;
-        console.log(`✍️ Sıra: ${i + 1} | Bekleme: ${waitTime}ms`);
-        
-        await new Promise(r => setTimeout(r, waitTime));
-
-        // 3. Mesajı Gönder
-        try {
-            await channel.send(currentMsg);
-            console.log(`✅ Gönderildi: ${i + 1}/${messages.length}`);
-        } catch (e) {
-            console.error("❌ Mesaj gönderilemedi:", e.message);
+// Ana Döngü Fonksiyonu
+async function startInfiniteLoop(client, messages) {
+    try {
+        const channel = await client.channels.fetch(channelId);
+        if (!channel) {
+            console.error("❌ HATA: Kanal bulunamadı! ID doğru mu?");
+            return;
         }
 
-        // 4. İndeksi güncelle (Liste biterse başa dön)
-        i = (i + 1) % messages.length;
+        let i = 0;
+        while (true) { // Sonsuz döngü
+            const currentMsg = messages[i];
 
-        // 5. Bir sonraki mesaj için 2 saniye nefes payı
-        await new Promise(r => setTimeout(r, 2000));
+            // 1. "Yazıyor..." simgesini göster
+            await channel.sendTyping();
+            
+            // 2. İnsan yazma hızı (Harf başı 150ms + 1sn sabit)
+            const waitTime = (currentMsg.length * 150) + 1000;
+            console.log(`✍️ Yazılıyor... Sıra: ${i + 1}/${messages.length} | Bekleme: ${waitTime}ms`);
+            
+            await new Promise(r => setTimeout(r, waitTime));
+
+            // 3. Mesajı Gönder
+            try {
+                await channel.send(currentMsg);
+                console.log(`✅ Gönderildi: "${currentMsg.substring(0, 20)}..."`);
+            } catch (e) {
+                console.error(`❌ Mesaj gönderilemedi (Sıra ${i+1}):`, e.message);
+            }
+
+            // 4. İndeksi güncelle (Liste biterse başa dön)
+            i = (i + 1) % messages.length;
+
+            // 5. İki mesaj arası 2 saniye dinlenme payı
+            await new Promise(r => setTimeout(r, 2000));
+        }
+    } catch (err) {
+        console.error("❌ Döngü sırasında bir hata oluştu:", err.message);
     }
 }
