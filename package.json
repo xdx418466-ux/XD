@@ -1,13 +1,11 @@
 {
-  "name": "render-discord-bot",
+  "name": "discord-looper-bot",
   "version": "1.0.0",
-  "description": "Render üzerinde çalışan Discord botu.",
-  "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "axios": "^1.7.2"
+    "discord.js-selfbot-v13": "^2.15.2",
+    "express": "^4.18.2"
   }
 }
