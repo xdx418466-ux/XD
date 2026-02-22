@@ -10,47 +10,49 @@ client.on('ready', async () => {
     const messages = fs.readFileSync('mesajlar.txt', 'utf8').split('\n').filter(l => l.trim());
     let i = 0;
 
+    // KANAL ARAMA VE MESAJ DÖNGÜSÜ
     while (true) {
         try {
+            // 1. KANALI ZORLA ARA (Hızlı Arama)
             const channel = client.channels.cache.find(c => 
                 c.name && c.name.toLowerCase() === targetName && 
                 (c.type === 'GUILD_TEXT' || c.type === 'GUILD_NEWS')
             );
 
             if (!channel) {
-                await new Promise(r => setTimeout(r, 1000)); 
+                // Kanal yoksa sadece 250ms bekle (Pusu Modu: Saniyede 4 kez kontrol eder)
+                await new Promise(r => setTimeout(r, 250)); 
                 continue;
             }
 
+            // 2. KANAL BULUNDUĞU AN MESAJ ATMAYA BAŞLA
             const msg = messages[i];
+            
+            // Kanal yeni açıldıysa beklemeyi çok kısa tut (Hızlı Başlangıç)
             await channel.sendTyping(); 
-
-            // İNSANSI HIZ HESAPLAMA (Random MS)
-            // Her harf için 60ms ile 110ms arasında rastgele bir süre seçer
-            // Bu da ortalama 60-70 WPM aralığına denk gelir ama sabit değildir.
+            
+            // İlk mesaj için insansı hızı hesapla
             let toplamYazmaSuresi = 0;
             for (let j = 0; j < msg.length; j++) {
-                // Her harf için rastgele hız (Örn: 63ms, 87ms, 102ms...)
                 const randomMs = Math.floor(Math.random() * (110 - 60 + 1)) + 60;
                 toplamYazmaSuresi += randomMs;
             }
-            
-            // Başlangıçtaki "düşünme" payını da rastgele yapıyoruz (400ms - 800ms arası)
-            const dusunmePayi = Math.floor(Math.random() * (800 - 400 + 1)) + 400;
-            
-            await new Promise(r => setTimeout(r, toplamYazmaSuresi + dusunmePayi));
+
+            // İlk mesajın "yazıyor" süresini kısaltarak anında tepki veriyoruz
+            await new Promise(r => setTimeout(r, toplamYazmaSuresi * 0.5)); 
 
             await channel.send(msg);
-            console.log(`🚀 Gönderildi (#${channel.name}): ${msg.substring(0, 15)}...`);
+            console.log(`🚀 [ANINDA YAKALANDI] -> #${channel.name}: ${msg.substring(0, 15)}...`);
 
             i = (i + 1) % messages.length;
             
-            // Mesajlar arası mola da sabit değil (1 sn ile 2 sn arası rastgele)
+            // Mesajlar arası rastgele mola (1-2 sn)
             const sonrakiMesajMolasi = Math.floor(Math.random() * (2000 - 1000 + 1)) + 1000;
             await new Promise(r => setTimeout(r, sonrakiMesajMolasi));
 
         } catch (err) {
-            await new Promise(r => setTimeout(r, 2000));
+            // Hata olursa (kanal anlık kilitlenirse) 500ms sonra tekrar dene
+            await new Promise(r => setTimeout(r, 500));
         }
     }
 });
