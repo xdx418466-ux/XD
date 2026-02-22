@@ -1,76 +1,65 @@
+const { Client } = require('discord.js-selfbot-v13');
 const express = require('express');
-const axios = require("axios");
-
+const fs = require('fs');
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-app.get("/", (req, res) => {
-  res.send("Bot kanallar arası döngüde aktif!");
-});
+// Render'ın uyku moduna geçmesini önlemek için basit sunucu
+app.get("/", (req, res) => res.send("Sonsuz Döngü Botu Aktif!"));
+app.listen(process.env.PORT || 10000);
 
-app.listen(PORT, () => {
-  console.log(`Sunucu ${PORT} portunda çalışıyor.`);
-});
-
-// Environment Değişkenleri
 const token = process.env.TOKEN;
-const channelIdsRaw = process.env.CHANNEL_IDS; // Virgülle ayrılmış ID'ler: "ID1,ID2"
-const msg1 = process.env.MESSAGE1;
-const msg2 = process.env.MESSAGE2;
+const channelId = process.env.CHANNEL_ID;
 
-// ID'leri diziye çeviriyoruz
-const channelList = channelIdsRaw ? channelIdsRaw.split(',').map(id => id.trim()) : [];
+if (token && channelId) {
+    const client = new Client({ checkUpdate: false });
 
-let currentChannelIndex = 0;
-let isFirstMessage = true;
-
-if (!token || channelList.length === 0 || !msg1 || !msg2) {
-    console.error("HATA: TOKEN, CHANNEL_IDS, MESSAGE1 veya MESSAGE2 eksik!");
-} else {
-    // 3 saniyede bir ana akışı başlat
-    setInterval(flow, 3000);
-}
-
-// "Yazıyor..." efekti fonksiyonu
-async function sendTyping(cid) {
-  try {
-    await axios.post(`https://discord.com/api/v9/channels/${cid}/typing`, {}, {
-      headers: { "Authorization": token }
+    client.on('ready', async () => {
+        console.log(`✅ Giriş Yapıldı: ${client.user.tag}`);
+        
+        try {
+            const data = fs.readFileSync('mesajlar.txt', 'utf8');
+            const messages = data.split('\n').filter(line => line.trim() !== '');
+            console.log(`📂 ${messages.length} satır yüklendi. Döngü başlıyor...`);
+            
+            // Ana döngüyü başlat
+            startLoop(client, messages);
+        } catch (err) {
+            console.error("❌ Dosya okuma hatası:", err.message);
+        }
     });
-  } catch (err) {
-    console.error(`${cid} kanalında yazıyor gösterilemedi.`);
-  }
+
+    client.login(token).catch(() => console.error("⚠️ Token geçersiz!"));
 }
 
-async function flow() {
-  // Sıradaki kanalı ve mesajı seç
-  const currentChannelId = channelList[currentChannelIndex];
-  const currentMessage = isFirstMessage ? msg1 : msg2;
-  
-  // Önce o kanalda yazıyor göster
-  await sendTyping(currentChannelId);
+async function startLoop(client, messages) {
+    const channel = await client.channels.fetch(channelId);
+    if (!channel) return;
 
-  // Mesajı gönder
-  axios.post(`https://discord.com/api/v9/channels/${currentChannelId}/messages`, {
-    content: currentMessage
-  }, {
-    headers: {
-      "Authorization": token,
-      "Content-Type": "application/json"
+    let i = 0;
+    while (true) { // Sonsuz döngü
+        const currentMsg = messages[i];
+
+        // 1. "Yazıyor..." simgesini göster
+        await channel.sendTyping();
+        
+        // 2. İnsan yazma hızı simülasyonu (Harf başı 150ms + 1sn sabit)
+        const waitTime = (currentMsg.length * 150) + 1000;
+        console.log(`✍️ Sıra: ${i + 1} | Bekleme: ${waitTime}ms`);
+        
+        await new Promise(r => setTimeout(r, waitTime));
+
+        // 3. Mesajı Gönder
+        try {
+            await channel.send(currentMsg);
+            console.log(`✅ Gönderildi: ${i + 1}/${messages.length}`);
+        } catch (e) {
+            console.error("❌ Mesaj gönderilemedi:", e.message);
+        }
+
+        // 4. İndeksi güncelle (Liste biterse başa dön)
+        i = (i + 1) % messages.length;
+
+        // 5. Bir sonraki mesaj için 2 saniye nefes payı
+        await new Promise(r => setTimeout(r, 2000));
     }
-  }).then(() => {
-    console.log(`✅ Kanal: ${currentChannelId} | Mesaj: "${currentMessage}"`);
-    
-    // Sırayı güncelle:
-    // Bir sonraki sefere diğer mesajı at
-    isFirstMessage = !isFirstMessage;
-    
-    // Bir sonraki sefere diğer kanala geç (Listenin sonuna gelince başa döner)
-    currentChannelIndex = (currentChannelIndex + 1) % channelList.length;
-    
-  }).catch((err) => {
-    console.error("❌ Mesaj hatası:", err.response?.status);
-    // Hata olsa bile sıradaki kanala geçmesi için indexi artırabiliriz
-    currentChannelIndex = (currentChannelIndex + 1) % channelList.length;
-  });
 }
