@@ -6,56 +6,69 @@ const token = process.env.TOKEN;
 const targetName = (process.env.CHANNEL_NAME || "x").toLowerCase(); 
 
 client.on('ready', async () => {
-    console.log(`✅ Giriş Yapıldı: ${client.user.tag}`);
+    console.log(`✅ Bot Hazır: ${client.user.tag}`);
     const messages = fs.readFileSync('mesajlar.txt', 'utf8').split('\n').filter(l => l.trim());
+    
     let i = 0;
+    let toplamYazilanHarf = 0;
+    let nefesLimit = Math.floor(Math.random() * (150 - 100 + 1)) + 100;
 
-    // KANAL ARAMA VE MESAJ DÖNGÜSÜ
+    // ANA DÖNGÜ
     while (true) {
         try {
-            // 1. KANALI ZORLA ARA (Hızlı Arama)
+            // 1. KANALI ANLIK BUL (Hızlı Tarama: 100ms)
             const channel = client.channels.cache.find(c => 
                 c.name && c.name.toLowerCase() === targetName && 
                 (c.type === 'GUILD_TEXT' || c.type === 'GUILD_NEWS')
             );
 
             if (!channel) {
-                // Kanal yoksa sadece 250ms bekle (Pusu Modu: Saniyede 4 kez kontrol eder)
-                await new Promise(r => setTimeout(r, 250)); 
+                // Kanal yoksa her 0.1 saniyede bir bak (Anında yakalaması için)
+                await new Promise(r => setTimeout(r, 100)); 
                 continue;
             }
 
-            // 2. KANAL BULUNDUĞU AN MESAJ ATMAYA BAŞLA
-            const msg = messages[i];
-            
-            // Kanal yeni açıldıysa beklemeyi çok kısa tut (Hızlı Başlangıç)
-            await channel.sendTyping(); 
-            
-            // İlk mesaj için insansı hızı hesapla
-            let toplamYazmaSuresi = 0;
-            for (let j = 0; j < msg.length; j++) {
-                const randomMs = Math.floor(Math.random() * (110 - 60 + 1)) + 60;
-                toplamYazmaSuresi += randomMs;
+            // 2. NEFES ALMA KONTROLÜ (Çok uzun sürmemesi için kısalttık)
+            if (toplamYazilanHarf >= nefesLimit) {
+                const nefesSuresi = Math.floor(Math.random() * (3000 - 1500 + 1)) + 1500; // 1.5 - 3 saniye
+                console.log(`💨 Kısa bir nefes alıyorum (${nefesSuresi}ms)...`);
+                await new Promise(r => setTimeout(r, nefesSuresi));
+                
+                toplamYazilanHarf = 0;
+                nefesLimit = Math.floor(Math.random() * (150 - 100 + 1)) + 100;
             }
 
-            // İlk mesajın "yazıyor" süresini kısaltarak anında tepki veriyoruz
-            await new Promise(r => setTimeout(r, toplamYazmaSuresi * 0.5)); 
+            // 3. MESAJ YAZMA VE GÖNDERME
+            const msg = messages[i];
+            
+            // Botun o an kanalda olduğunu Discord'a bildir
+            await channel.sendTyping(); 
+
+            let yazmaSuresi = 0;
+            for (let char of msg) {
+                // Harf hızı (Daha seri: 50-90ms)
+                yazmaSuresi += Math.floor(Math.random() * (90 - 50 + 1)) + 50;
+            }
+            
+            // Yazma süresini bekle (Gerçekçi hız)
+            await new Promise(r => setTimeout(r, yazmaSuresi));
 
             await channel.send(msg);
-            console.log(`🚀 [ANINDA YAKALANDI] -> #${channel.name}: ${msg.substring(0, 15)}...`);
+            console.log(`🚀 [#${channel.name}] Mesaj Gitti: ${msg.substring(0, 15)}...`);
 
+            toplamYazilanHarf += msg.length;
             i = (i + 1) % messages.length;
             
-            // Mesajlar arası rastgele mola (1-2 sn)
-            const sonrakiMesajMolasi = Math.floor(Math.random() * (2000 - 1000 + 1)) + 1000;
-            await new Promise(r => setTimeout(r, sonrakiMesajMolasi));
+            // Mesaj biter bitmez beklemeden (100ms) döngü başına dön
+            await new Promise(r => setTimeout(r, 100));
 
         } catch (err) {
-            // Hata olursa (kanal anlık kilitlenirse) 500ms sonra tekrar dene
-            await new Promise(r => setTimeout(r, 500));
+            // Hata durumunda 1 saniye bekleyip kanalı tekrar ara
+            console.log("⚠️ Takip hatası, kanal aranıyor...");
+            await new Promise(r => setTimeout(r, 1000));
         }
     }
 });
 
-require('http').createServer((req, res) => res.end("Aktif")).listen(process.env.PORT || 10000);
+require('http').createServer((req, res) => res.end("Bot Aktif")).listen(process.env.PORT || 10000);
 client.login(token);
