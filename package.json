@@ -1,9 +1,11 @@
 {
   "name": "discord-looper",
   "version": "1.0.0",
-  "scripts": { "start": "node index.js" },
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
     "discord.js-selfbot-v13": "2.15.2",
-    "express": "latest"
+    "express": "^4.18.2"
   }
 }
