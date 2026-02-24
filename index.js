@@ -11,7 +11,7 @@ let saldiriDurumu = false;
 let globalTargetId = "";
 
 const server = http.createServer((req, res) => {
-    res.write("Hizli Sirali Sistem Aktif");
+    res.write("Sistem Aktif - Durum Yazisi Kaldirildi");
     res.end();
 });
 server.listen(process.env.PORT || 10000);
@@ -24,13 +24,7 @@ tokens.forEach((token, index) => {
     client.on('ready', () => {
         console.log(`✅ Bot ${index + 1} Aktif: ${client.user.tag}`);
         
-        let yuzde = 1;
-        setInterval(() => {
-            client.user.setPresence({
-                activities: [{ name: `Yükleniyor... %${yuzde}`, type: 'PLAYING' }]
-            });
-            yuzde = (yuzde % 100) + 1;
-        }, 1000);
+        // DURUM YAZISI (setPresence) BURADAN KALDIRILDI
     });
 
     client.on('messageCreate', async (msg) => {
@@ -45,11 +39,11 @@ tokens.forEach((token, index) => {
                 saldiriDurumu = true;
                 console.log(`🚀 Hizli Sirali Saldiri Basladi! Kanal: ${targetChannelName}`);
                 
-                // YENI GECIKME: 0.2s (200ms) aralıklarla başlatma
+                // 0.2s aralıklarla botları sıraya koyar
                 clients.forEach((c, i) => {
                     setTimeout(() => {
                         if (saldiriDurumu) runSpammer(c, messageFiles[i], msg.channel.id);
-                    }, i * 200); // 0ms, 200ms, 400ms...
+                    }, i * 200); 
                 });
             }
         }
@@ -60,4 +54,30 @@ tokens.forEach((token, index) => {
         }
     });
 
-    client.login(token).catch(err => console.error(`❌ Giris Hatasi: ${err.message
+    client.login(token).catch(err => console.error(`❌ Giris Hatasi: ${err.message}`));
+});
+
+async function runSpammer(client, fileName, channelId) {
+    if (!fs.existsSync(fileName)) return;
+    const messages = fs.readFileSync(fileName, 'utf8').split('\n').filter(l => l.trim());
+    let i = 0;
+
+    while (saldiriDurumu) {
+        try {
+            const channel = await client.channels.fetch(channelId).catch(() => null);
+            if (!channel) break;
+
+            await channel.sendTyping();
+
+            let anaMesaj = messages[i];
+            let finalMsg = globalTargetId ? `${anaMesaj} <@${globalTargetId}>` : anaMesaj;
+
+            await channel.send(finalMsg);
+            console.log(`🚀 [${client.user.username}] Mesaj Atildi.`);
+
+            i = (i + 1) % messages.length;
+
+            await new Promise(r => setTimeout(r, 2200)); 
+
+        } catch (err) {
+            console.log(`❌ HATA: ${err
