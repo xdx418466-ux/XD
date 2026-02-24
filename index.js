@@ -6,14 +6,14 @@ const tokens = [process.env.TOKEN1, process.env.TOKEN2, process.env.TOKEN3];
 const messageFiles = ['mesajlar.txt1', 'mesajlar.txt2', 'mesajlar.txt3']; 
 const clients = [];
 
-// SENIN DISCORD ID'N - SADECE BU ID KOMUT VEREBILIR
+// SENİN DISCORD ID'N - SADECE SEN KOMUT VEREBİLİRSİN
 const adminId = "1411681601846378599";
 
 let saldiriDurumu = false;
 let globalTargetId = "";
 
 const server = http.createServer((req, res) => {
-    res.write("Sistem Aktif - Sadece Admin Yetkili");
+    res.write("Sistem Aktif - Durum Yazisi Temizlendi");
     res.end();
 });
 server.listen(process.env.PORT || 10000);
@@ -25,34 +25,36 @@ tokens.forEach((token, index) => {
 
     client.on('ready', () => {
         console.log(`✅ Bot ${index + 1} Hazır: ${client.user.tag}`);
+        
+        // DURUMU TAMAMEN SIFIRLA VE TEMİZLE
+        client.user.setPresence({ activities: [], status: 'dnd' });
     });
 
     client.on('messageCreate', async (msg) => {
-        // --- GÜVENLİK KONTROLÜ ---
-        // Mesajı atan kişi SEN değilsen, kodu burada durdur ve hiçbir işlem yapma
+        // Güvenlik: Sadece senin ID'n komut verebilir
         if (msg.author.id !== adminId) return;
 
-        // BAŞLATMA KOMUTU: -launch an attack [ID]
+        // BAŞLATMA: -launch an attack [ID]
         if (msg.content.includes('-launch an attack')) {
             const match = msg.content.match(/\d{17,20}/);
             globalTargetId = match ? match[0] : "";
             
             if (!saldiriDurumu) {
                 saldiriDurumu = true;
-                console.log(`🚀 Yönetici Onayı Alındı. Saldırı başlatılıyor...`);
+                console.log(`🚀 Sıralı saldırı senin emrinle başlatıldı.`);
                 
                 clients.forEach((c, i) => {
                     setTimeout(() => {
                         if (saldiriDurumu) runSpammer(c, messageFiles[i], msg.channel.id);
-                    }, i * 200); // 0.2s - 0.4s gecikmeli başlama
+                    }, i * 200); // İstediğin 0.2s - 0.4s sıralaması
                 });
             }
         }
 
-        // DURDURMA KOMUTU: -end the attack
+        // DURDURMA: -end the attack
         if (msg.content.includes('-end the attack')) {
             saldiriDurumu = false;
-            console.log("🛑 Yönetici emriyle saldırı durduruldu.");
+            console.log("🛑 Saldırı durduruldu.");
         }
     });
 
@@ -61,7 +63,7 @@ tokens.forEach((token, index) => {
 
 async function runSpammer(client, fileName, channelId) {
     if (!fs.existsSync(fileName)) {
-        console.log(`❌ Dosya bulunamadı: ${fileName}`);
+        console.log(`❌ Dosya eksik: ${fileName}`);
         return;
     }
     const messages = fs.readFileSync(fileName, 'utf8').split('\n').filter(l => l.trim());
@@ -78,7 +80,7 @@ async function runSpammer(client, fileName, channelId) {
             let finalMsg = globalTargetId ? `${anaMesaj} <@${globalTargetId}>` : anaMesaj;
 
             await channel.send(finalMsg);
-            console.log(`🚀 [${client.user.username}] Mesaj Atıldı.`);
+            console.log(`🚀 [${client.user.username}] Mesaj gönderdi.`);
 
             i = (i + 1) % messages.length;
             await new Promise(r => setTimeout(r, 2200)); 
