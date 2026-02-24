@@ -11,7 +11,7 @@ let saldiriDurumu = false;
 let globalTargetId = "";
 
 const server = http.createServer((req, res) => {
-    res.write("Sistem Aktif - Durum Yazisi Kaldirildi");
+    res.write("Sistem Aktif - Hatalar Giderildi");
     res.end();
 });
 server.listen(process.env.PORT || 10000);
@@ -23,8 +23,6 @@ tokens.forEach((token, index) => {
 
     client.on('ready', () => {
         console.log(`✅ Bot ${index + 1} Aktif: ${client.user.tag}`);
-        
-        // DURUM YAZISI (setPresence) BURADAN KALDIRILDI
     });
 
     client.on('messageCreate', async (msg) => {
@@ -37,9 +35,8 @@ tokens.forEach((token, index) => {
             
             if (!saldiriDurumu) {
                 saldiriDurumu = true;
-                console.log(`🚀 Hizli Sirali Saldiri Basladi! Kanal: ${targetChannelName}`);
+                console.log(`🚀 Hizli Sirali Saldiri Basladi!`);
                 
-                // 0.2s aralıklarla botları sıraya koyar
                 clients.forEach((c, i) => {
                     setTimeout(() => {
                         if (saldiriDurumu) runSpammer(c, messageFiles[i], msg.channel.id);
@@ -76,8 +73,13 @@ async function runSpammer(client, fileName, channelId) {
             console.log(`🚀 [${client.user.username}] Mesaj Atildi.`);
 
             i = (i + 1) % messages.length;
-
             await new Promise(r => setTimeout(r, 2200)); 
 
         } catch (err) {
-            console.log(`❌ HATA: ${err
+            // Hata buradaki console.log yazımındaydı, düzeltildi:
+            console.log(`❌ HATA: ${err.message}`);
+            if (err.status === 429) await new Promise(r => setTimeout(r, 15000));
+            await new Promise(r => setTimeout(r, 3000));
+        }
+    }
+}
