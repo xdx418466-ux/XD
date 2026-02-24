@@ -3,15 +3,17 @@ const fs = require('fs');
 const http = require('http');
 
 const tokens = [process.env.TOKEN1, process.env.TOKEN2, process.env.TOKEN3];
-const targetChannelName = (process.env.CHANNEL_NAME || "").trim().toLowerCase();
 const messageFiles = ['mesajlar.txt1', 'mesajlar.txt2', 'mesajlar.txt3']; 
 const clients = [];
+
+// SENIN DISCORD ID'N - SADECE BU ID KOMUT VEREBILIR
+const adminId = "1411681601846378599";
 
 let saldiriDurumu = false;
 let globalTargetId = "";
 
 const server = http.createServer((req, res) => {
-    res.write("Sistem Aktif - Hatalar Giderildi");
+    res.write("Sistem Aktif - Sadece Admin Yetkili");
     res.end();
 });
 server.listen(process.env.PORT || 10000);
@@ -22,40 +24,46 @@ tokens.forEach((token, index) => {
     clients.push(client);
 
     client.on('ready', () => {
-        console.log(`✅ Bot ${index + 1} Aktif: ${client.user.tag}`);
+        console.log(`✅ Bot ${index + 1} Hazır: ${client.user.tag}`);
     });
 
     client.on('messageCreate', async (msg) => {
-        if (msg.author.id !== client.user.id) return;
-        if (!msg.channel.name || msg.channel.name.toLowerCase() !== targetChannelName) return;
+        // --- GÜVENLİK KONTROLÜ ---
+        // Mesajı atan kişi SEN değilsen, kodu burada durdur ve hiçbir işlem yapma
+        if (msg.author.id !== adminId) return;
 
+        // BAŞLATMA KOMUTU: -launch an attack [ID]
         if (msg.content.includes('-launch an attack')) {
             const match = msg.content.match(/\d{17,20}/);
             globalTargetId = match ? match[0] : "";
             
             if (!saldiriDurumu) {
                 saldiriDurumu = true;
-                console.log(`🚀 Hizli Sirali Saldiri Basladi!`);
+                console.log(`🚀 Yönetici Onayı Alındı. Saldırı başlatılıyor...`);
                 
                 clients.forEach((c, i) => {
                     setTimeout(() => {
                         if (saldiriDurumu) runSpammer(c, messageFiles[i], msg.channel.id);
-                    }, i * 200); 
+                    }, i * 200); // 0.2s - 0.4s gecikmeli başlama
                 });
             }
         }
 
+        // DURDURMA KOMUTU: -end the attack
         if (msg.content.includes('-end the attack')) {
             saldiriDurumu = false;
-            console.log("🛑 Saldiri Durduruldu.");
+            console.log("🛑 Yönetici emriyle saldırı durduruldu.");
         }
     });
 
-    client.login(token).catch(err => console.error(`❌ Giris Hatasi: ${err.message}`));
+    client.login(token).catch(err => console.error(`❌ Giriş Hatası: ${err.message}`));
 });
 
 async function runSpammer(client, fileName, channelId) {
-    if (!fs.existsSync(fileName)) return;
+    if (!fs.existsSync(fileName)) {
+        console.log(`❌ Dosya bulunamadı: ${fileName}`);
+        return;
+    }
     const messages = fs.readFileSync(fileName, 'utf8').split('\n').filter(l => l.trim());
     let i = 0;
 
@@ -70,13 +78,12 @@ async function runSpammer(client, fileName, channelId) {
             let finalMsg = globalTargetId ? `${anaMesaj} <@${globalTargetId}>` : anaMesaj;
 
             await channel.send(finalMsg);
-            console.log(`🚀 [${client.user.username}] Mesaj Atildi.`);
+            console.log(`🚀 [${client.user.username}] Mesaj Atıldı.`);
 
             i = (i + 1) % messages.length;
             await new Promise(r => setTimeout(r, 2200)); 
 
         } catch (err) {
-            // Hata buradaki console.log yazımındaydı, düzeltildi:
             console.log(`❌ HATA: ${err.message}`);
             if (err.status === 429) await new Promise(r => setTimeout(r, 15000));
             await new Promise(r => setTimeout(r, 3000));
